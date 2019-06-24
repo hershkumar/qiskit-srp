@@ -1,5 +1,8 @@
-# This code time evolves the full Heisenberg spin chain model on n qubits, and plots the probability 
-# of obtaining a certain state for varying lengths of time evolution
+"""
+This code time evolves the full Heisenberg spin chain model on n qubits, 
+and plots the probability of obtaining a certain state for varying lengths of 
+time evolution.
+"""
 from math import pi
 import matplotlib.pyplot as plt
 import numpy as np

@@ -1,1 +1,1 @@
-QISkit
+Hersh Kumar's SRP QISkit programs, written in python, using the qiskit library.

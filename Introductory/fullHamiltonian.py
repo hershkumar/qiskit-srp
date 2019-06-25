@@ -8,6 +8,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 from qiskit import (Aer, ClassicalRegister, QuantumCircuit, QuantumRegister,
                     execute)
+# sets the state of the qubits to the specified string
+def set_state(state):
+	state = list(state)
+	i = 0
+	while (i < num_qubits):
+		if (state[i] == '1'):
+			circuit.x(q[i])
+		i+=1
+
 # number of qubits that we are running the time evolution on
 num_qubits = 4
 q = QuantumRegister(num_qubits)
@@ -34,7 +43,7 @@ n_limit = 10
 
 while (n <= n_limit):
 	circuit = QuantumCircuit(q,c)
-	
+	set_state('0000')
 	x.append(n*dt)
 	count = 0
 	while (count < n):

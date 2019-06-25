@@ -11,7 +11,7 @@ IBMQ.load_accounts()
 small_devices = IBMQ.backends(filters=lambda x: x.configuration().n_qubits == 5 and not x.configuration().simulator)
 backend = least_busy(small_devices)
 
-q = Quantum Register(1)
+q = QuantumRegister(1)
 c = ClassicalRegister(1)
 
 circuit = QuantumCircuit(q,c)

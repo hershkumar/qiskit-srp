@@ -7,39 +7,36 @@ from qiskit import QuantumCircuit, ClassicalRegister, QuantumRegister
 from qiskit import Aer, execute
 from qiskit.providers.aer import StatevectorSimulator
 links = []
+qubits = []
 data = []
 #*----------------------------------*#
-#* MODIFIABLE VARIABLES
-
 # number of sites on the plaquette
-#* currently this variable is not used by anything because the number of sites doesn't really matter 
-#* until you enact a gauge transformation
+#! currently this variable is not used by anything
 num_sites = 2
-# the number of total links between sites
+# the number of links
 num_links = 2
-# the number of ancilary qubits that we are using
-num_ancillary = 2
+# the number of ancillary qubits that we are using
+num_ancilla = 2
 # chooses whether or not to use the qasm_simulator or the statevector simulator
 # either "qasm" or "sv"
 backend = "qasm"
-# the initial state the system should be set to 
-#! this does not do anything because the set_state function is broken
+# the initial state the system should be set to
 initial_state = '000000'
-
+# chooses whether or not to measure all qubits, rather than just non-ancillary qubits
+measure_ancilla = False
 #*----------------------------------*#
 
 # checks to make sure that you picked one of the right two variables
 if (backend != "qasm" and backend != "sv"):
     print("Please choose either \"qasm\" or \"sv\" for the backend variable. ")
 # sets the state of the qubits to the specified string
-# TODO: figure out why this function is broken
 def set_state(state):
     state = list(state)
     i = 0
     while (i < num_qubits):
         if (state[i] == '1'):
             circuit.x(q[i])
-            i+=1
+        i+=1
 
 # element 1 (q1,q2) + element 2 (q3,q4)
 def multiplication(q0,q1,q2,q3):
@@ -64,31 +61,57 @@ def kinetic(q0,q1,q2,q3):
     circuit.crz(pi,q1,q2)
     circuit.crz(pi,q0,q3)
     circuit.rzz(pi/2,q2,q3)
-    circuit.crz(-pi/2,q1,q3)
-    circuit.crz(pi,q1,q2)
     circuit.crz(pi,q0,q3)
+    circuit.crz(pi,q1,q2)
+    circuit.crz(-pi/2,q1,q3)
 # finds the inverse of a group element (the number is stored in q0,q1)
 def inverse(q0,q1):
     circuit.cx(q[1],q[0])
 
 
 # figure out the number of qubits necessary for the registers
-num_qubits = 2 * num_links + num_ancillary
+num_qubits = 2 * num_links + num_ancilla
 
 #initialize qubit registers
 q = QuantumRegister(num_qubits)
 c = ClassicalRegister(num_qubits)
+# initialize the list qubits with only the useful qubits (no ancilla)
+i = 0 
+while (i < (num_qubits - num_ancilla)):
+    qubits.append(q[i])
+    i += 1
 
+# initialize links with all the paired links
+for i,k in zip(qubits[0::2], qubits[1::2]):
+    links.append((i,k))
+    
+#* actual circuit starts here
+# initializes the quantum circuit
 circuit = QuantumCircuit(q,c)
+# places the 4 qubits into a gauge invariant state using Hadamards
+for i in qubits:
+    circuit.h(i)
 
-"""
-TODO: The actual code that should go here:
- 1. start from gauge invariant state
- 2. time evolve
- 3. make sure that the ending state is also gauge invariant
-"""
+# kinetic portion of the circuit
+for pair in links:
+    kinetic(pair[0],pair[1],q[4],q[5])
 
-circuit.measure(q,c)
+# potential portion of the circuit
+multiplication(q[0],q[1],q[2],q[3])
+trace(q[0],q[1])
+inverse(q[2],q[3])
+multiplication(q[0],q[1],q[2],q[3])
+inverse(q[2],q[3])
+
+
+
+if (measure_ancilla == True):
+    # measures all qubits (including ancilla)
+    circuit.measure(q,c)
+else:
+    # measures all the actual qubits, but not the ancilla
+    circuit.measure(qubits,c[:4])
+
 # draw the circuit in a pdf file
 circuit.draw(output="latex", filename="Z4Circuit.pdf")
 # use either the statevector simulator or the qasm simulator based on 
@@ -108,8 +131,4 @@ elif (backend == "qasm"):
     # place the resulting dictionary in the data list
     data.append(results)
 
-# reverse the ordering of the qubits for readability
-for i in data:
-    for key in i:
-        key = key[::-1]
-        print(data)
+print(data)

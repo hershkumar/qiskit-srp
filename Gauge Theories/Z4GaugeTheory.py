@@ -25,11 +25,11 @@ initial_state = '000000'
 # chooses whether or not to measure all qubits, rather than just non-ancillary qubits
 measure_ancilla = False
 # the final time that we want to evolve for
-t_final = 10
+t_final = 5
 # the timestep
 dt = .1
 # which state do you want to plot? (with no ancilla)
-desired_state = '000000'
+desired_state = '111111'
 #*----------------------------------*#
 if (backend=="sv"):
     # which element of the statevector do you want?
@@ -163,7 +163,9 @@ plt.xlabel('Time')
 plt.title('Time vs. Probability of ' + desired_state)
 plt.ylim([-.2,1.2])
 plt.show()
+print("plot drawn")
 
 # draw the circuit in a pdf file
-#! this is broken because the circuit is too long lmao
+#! this is broken because the circuit is too long
+#! I dont think that there is any way around this issue, without drawing an intermediate circuit diagram
 #circuit.draw(output="latex", filename="Z4Circuit.pdf")

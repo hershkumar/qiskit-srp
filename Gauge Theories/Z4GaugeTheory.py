@@ -9,9 +9,11 @@ from qiskit import Aer, execute
 from qiskit.providers.aer import StatevectorSimulator
 links = []
 qubits = []
+desired_states = []
 data = []
 x = []
-y = []
+ys = [[], [], [], []]
+y_sum = []
 #*----------------------------------*#
 # the number of links
 num_links = 2
@@ -25,18 +27,25 @@ initial_state = '000000'
 # chooses whether or not to measure all qubits, rather than just non-ancillary qubits
 measure_ancilla = False
 # the final time that we want to evolve for
-t_final = 5
+t_final = 10
 # the timestep
 dt = .1
-# which state do you want to plot? (with no ancilla)
+# which state do you want to plot?
 desired_state = '111111'
+desired_state_no_ancilla = '1111'
 #*----------------------------------*#
 if (backend=="sv"):
+    desired_states.append('00' + desired_state_no_ancilla)
+    desired_states.append('01' + desired_state_no_ancilla)
+    desired_states.append('10' + desired_state_no_ancilla)
+    desired_states.append('11' + desired_state_no_ancilla)
     # which element of the statevector do you want?
-    desired_element = int(desired_state,2)
-
+    counter = 0
+    while (counter < len(desired_states)):
+        desired_states[counter] = int(desired_states[counter],2)
+        counter += 1
 # the maximum number of times that we append the circuit
-n_max = t_final / dt 
+n_max = t_final / dt
 # checks to make sure that you picked one of the right two variables
 if (backend != "qasm" and backend != "sv"):
     print("Please choose either \"qasm\" or \"sv\" for the backend variable. ")
@@ -70,15 +79,15 @@ def kinetic(q0,q1,q2,q3):
     circuit.crz(pi/2,q1,q3)
     circuit.crz(pi,q1,q2)
     circuit.crz(pi,q0,q3)
-    
+
     circuit.rzz(dt,q2,q3)
-    
+
     circuit.crz(pi,q0,q3)
     circuit.crz(pi,q1,q2)
     circuit.crz(-pi/2,q1,q3)
 # finds the inverse of a group element (the number is stored in q0,q1)
-def inverse(q0,q1):
-    circuit.cx(q[1],q[0])
+def inverse(q0, q1):
+    circuit.cx(q1, q0)
 
 
 # figure out the number of qubits necessary for the registers
@@ -88,7 +97,7 @@ num_qubits = 2 * num_links + num_ancilla
 q = QuantumRegister(num_qubits)
 c = ClassicalRegister(num_qubits)
 # initialize the list qubits with only the useful qubits (no ancilla)
-i = 0 
+i = 0
 while (i < (num_qubits - num_ancilla)):
     qubits.append(q[i])
     i += 1
@@ -121,10 +130,12 @@ while (n < n_max):
         inverse(q[2],q[3])
         multiplication(q[0],q[1],q[2],q[3])
         inverse(q[2],q[3])
-        
-        count += 1 
-    if (backend == "qasm"):    
+
+        count += 1
+    if (backend == "qasm" and measure_ancilla == True):
         circuit.measure(q,c)
+    if (backend == "qasm" and measure_ancilla == False):
+        circuit.measure(qubits,c[:4])
     # use either the statevector simulator or the qasm simulator based on the backend variable
     if (backend == "sv"):
         os.system( 'cls' )
@@ -133,21 +144,29 @@ while (n < n_max):
         simulator = Aer.get_backend('statevector_simulator')
         result = execute(circuit,simulator).result()
         statevector = result.get_statevector(circuit)
-        element = statevector[desired_element]
-        prob = 0
-        if (element == 0j):
-            prob = 0
-        else:
-            prob = (element * element.conjugate()).real
-        y.append(prob)
+
+        # get all 4 states with last four qubits in state 1111
+        # there are 4 due to the 2 ancillary qubits (00,01...)
+        elements = [statevector[desired_states[i]] for i in [0, 1, 2, 3]]
+        # get the probabilities of these states
+        probs = [(element * element.conjugate()).real for element in elements]
+        # append the right probability to the correct plotted list
+        i = 0
+        while (i < len(ys)):
+            ys[i].append(probs[i])
+            i += 1
+        # append all the probabilities to the sum list y_sum
+        y_sum.append(sum(probs))
     elif (backend == "qasm"):
         os.system( 'cls' )
+        # calculate the percent of runs completed
         percent = int((n+1)/(t_final/dt)*100)
         print("executing run " + str(n+1) +" of "+ str(int(t_final/dt)) + " ("+ str(percent) +"%)")
         num_shots = 100
         job = execute(circuit,backend = Aer.get_backend('qasm_simulator'),shots = num_shots)
         result = job.result()
         results = result.get_counts(circuit)
+        #! fix this
         if (desired_state in results):
             num = results[desired_state]
             prob = num / num_shots
@@ -157,11 +176,17 @@ while (n < n_max):
 
     n += 1
 #plot the probability of the desired gate
-plt.plot(x,y)
+for i in range(len(ys)):
+    plt.plot(x, ys[i], ['r','g','b','c'][i], label = format(i, 'b'))
+#plots the sum of all 4 probabilities
+plt.plot(x,y_sum,'m',label='total')
+# labels and legend for the plot
 plt.ylabel('Probability of ' + desired_state)
 plt.xlabel('Time')
+plt.legend(loc='upper left')
 plt.title('Time vs. Probability of ' + desired_state)
 plt.ylim([-.2,1.2])
+# shows the plot
 plt.show()
 print("plot drawn")
 

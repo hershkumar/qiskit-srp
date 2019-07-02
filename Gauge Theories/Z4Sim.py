@@ -1,12 +1,12 @@
 
-import numpy as np
-import pickle
 import os
+import pickle
 from math import pi
-from qiskit import QuantumCircuit, ClassicalRegister, QuantumRegister
-from qiskit import Aer, execute
-from qiskit.providers.aer import StatevectorSimulator
 
+import numpy as np
+from qiskit import (Aer, ClassicalRegister, QuantumCircuit, QuantumRegister,
+                    execute)
+from qiskit.providers.aer import StatevectorSimulator
 
 
 def initialization(num_links, num_ancilla, t_final, dt):
@@ -32,7 +32,7 @@ def initialization(num_links, num_ancilla, t_final, dt):
     return (q, c, qubits, links)
 
 
-# GATE DEFINITIONS -----------------------------------
+#* GATE DEFINITIONS -----------------------------------
 # element 1 (q1,q2) + element 2 (q3,q4)
 def multiplication(circuit, q0, q1, q2, q3):
     circuit.cx(q2, q0)
@@ -64,7 +64,7 @@ def kinetic(circuit, dt, q0, q1, q2, q3):
 # finds the inverse of a group element (the number is stored in q0, q1)
 def inverse(circuit, q0, q1):
     circuit.cx(q1, q0)
-
+#*--------------------------------------------------------
 # sv sim
 def sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
     (q, c, qubits, links) = initialization(num_links, num_ancilla, t_final, dt)
@@ -72,8 +72,7 @@ def sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
     n_max = t_final / dt
     out_list = []
     n = 0
-    print(n_max)
-    while (n <= n_max):
+    while (n < n_max):
         count = 0
         # initializes the quantum circuit
         circuit = QuantumCircuit(q,c)
@@ -108,15 +107,60 @@ def sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
     print(f"Writing state vector to {output_file} ...")
     with open(output_file, "wb") as out:
         pickle.dump(out_list, out)
-        #out.write(str(out_list))
     print("Done!")
+    
 
-# qasm sim TODO
-#def qasm_sim():
+def qasm_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
+    (q, c, qubits, links) = initialization(num_links, num_ancilla, t_final, dt)
+    # the maximum number of times that we append the circuit
+    n_max = t_final / dt
+    # TODO: run the simulation using the qasm sim
+    output = []
+    n = 0
+    while (n < n_max):
+        count = 0
+        # initializes the quantum circuit
+        circuit = QuantumCircuit(q,c)
+        # places the 4 qubits into a gauge invariant state using Hadamards
+        for i in qubits:
+            circuit.h(i)
+        # starts appending the gates
+        while (count < n):
+
+            # kinetic portion of the circuit
+            for pair in links:
+                kinetic(circuit, dt, pair[0], pair[1], q[4], q[5])
+
+            # potential portion of the circuit
+            multiplication(circuit, q[0], q[1], q[2], q[3])
+            trace(circuit, dt, q[0], q[1])
+            inverse(circuit, q[2], q[3])
+            multiplication(circuit, q[0], q[1], q[2], q[3])
+            inverse(circuit, q[2], q[3])
+
+            count += 1
+        circuit.measure(q,c)
+        # use the qasm simulator based on the backend variable
+        os.system( 'cls' )
+        percent = int((n+1) / n_max * 100)
+        print(f"Executing run {repr(n+1)} of {repr(int(n_max))}: ({repr(percent)}%) done.")
+        num_shots = 100
+        job = execute(circuit,backend = Aer.get_backend('qasm_simulator'),shots = num_shots)
+        result = job.result()
+        results = result.get_counts(circuit)
+        results['time'] = n*dt
+        output.append(results)
+        n += 1
+    print(f"Writing state vector to {output_file} ...")
+    with open(output_file, "wb") as out:
+        pickle.dump(output, out)
+    print("Done!")
 
 # run either a qasm or sv simulation
 def run_sim(backend, num_links, num_ancilla, t_final, dt, output_file='', initial_state='000000'):
     if output_file == '':
         output_file = 'z4' + backend + 'data.dat'
-    # TODO: only sv for now
-    sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state)
+    if backend == 'sv':
+        sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state)
+    if backend == 'qasm':
+        qasm_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state)

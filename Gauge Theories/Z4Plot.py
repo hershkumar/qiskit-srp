@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import pickle
 
-# TODO the lattice geometry is hardcoded -- this should be changed
+# TODO the lattice geometry is hardcoded -- this should be changed, but probably won't be
 
 def initialize(filename):
     x = []
@@ -32,7 +32,7 @@ def plot(filename, desired_state = '0000'):
             prob = (element * element.conjugate()).real
             probs[state].append(prob)
 
-
+    # plot all the probabilities that we want
     for i in range(4):
         plt.plot(x, probs[i], colors[i], label = prefixes[i])
     # labels and legend for the plot

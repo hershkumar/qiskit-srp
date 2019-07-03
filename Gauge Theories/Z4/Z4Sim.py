@@ -51,7 +51,7 @@ def csqx(circuit, q0, q1):
     circuit.crz(pi,q0,q1)
     circuit.h(q1)
 
-# controlled square root of x inverse
+# controlled square root of x inverted
 def csqxinv(circuit, q0, q1):
     circuit.h(q1)
     circuit.crz(-pi,q0,q1)
@@ -67,6 +67,7 @@ def kinetic(circuit, dt, q0, q1):
     circuit.h(q0)
     circuit.h(q1)
     csqxinv(circuit, q0, q1)
+
 # finds the inverse of a group element (the number is stored in q0, q1)
 def inverse(circuit, q0, q1):
     circuit.cx(q1, q0)

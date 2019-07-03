@@ -9,17 +9,17 @@ from qiskit import (Aer, ClassicalRegister, QuantumCircuit, QuantumRegister,
 from qiskit.providers.aer import StatevectorSimulator
 
 
-def initialization(num_links, num_ancilla, t_final, dt):
-    # figure out the number of qubits necessary for the registers
-    num_qubits = 2 * num_links + num_ancilla
+def initialization(t_final, dt):
+    #the number of qubits necessary for the registers
+    num_qubits = 4
 
     #initialize qubit registers
     q = QuantumRegister(num_qubits)
     c = ClassicalRegister(num_qubits)
-    # initialize the list qubits with only the useful qubits (no ancilla)
+    # initialize the list qubits with the qubits
     i = 0
     qubits = []
-    while (i < (num_qubits - num_ancilla)):
+    while (i < num_qubits):
         qubits.append(q[i])
         i += 1
 
@@ -45,29 +45,35 @@ def trace(circuit, dt, q0, q1):
     circuit.crz(dt, q0, q1)
     circuit.x(q0)
 
+# controlled square root of x
+def csqx(circuit, q0, q1):
+    circuit.h(q1)
+    circuit.crz(pi,q0,q1)
+    circuit.h(q1)
+
+# controlled square root of x inverse
+def csqxinv(circuit, q0, q1):
+    circuit.h(q1)
+    circuit.crz(-pi,q0,q1)
+    circuit.h(q1)
+
 #defines the kinetic term of the hamiltonian as a circuit
 # q0 and q1 are the 2 qubits that hold the group element
-# q2 and q3 are the 2 ancillary qubits
-def kinetic(circuit, dt, q0, q1, q2, q3):
-    circuit.h(q2)
-    circuit.h(q3)
-    circuit.crz(pi/2, q1, q3)
-    circuit.crz(pi, q1, q2)
-    circuit.crz(pi, q0, q3)
-
-    circuit.rzz(dt, q2, q3)
-
-    circuit.crz(pi, q0, q3)
-    circuit.crz(pi, q1, q2)
-    circuit.crz(-pi/2, q1, q3)
-
+def kinetic(circuit, dt, q0, q1):
+    csqx(circuit, q0, q1)
+    circuit.h(q0)
+    circuit.h(q1)
+    circuit.crz(dt, q0, q1)
+    circuit.h(q0)
+    circuit.h(q1)
+    csqxinv(circuit, q0, q1)
 # finds the inverse of a group element (the number is stored in q0, q1)
 def inverse(circuit, q0, q1):
     circuit.cx(q1, q0)
 #*--------------------------------------------------------
 # sv sim
-def sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
-    (q, c, qubits, links) = initialization(num_links, num_ancilla, t_final, dt)
+def sv_sim(t_final, dt, output_file, initial_state):
+    (q, c, qubits, links) = initialization(t_final, dt)
     # the maximum number of times that we append the circuit
     n_max = t_final / dt
     out_list = []
@@ -84,7 +90,7 @@ def sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
 
             # kinetic portion of the circuit
             for pair in links:
-                kinetic(circuit, dt, pair[0], pair[1], q[4], q[5])
+                kinetic(circuit, dt, pair[0], pair[1])
 
             # potential portion of the circuit
             multiplication(circuit, q[0], q[1], q[2], q[3])
@@ -110,11 +116,10 @@ def sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
     print("Done!")
     
 
-def qasm_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
-    (q, c, qubits, links) = initialization(num_links, num_ancilla, t_final, dt)
+def qasm_sim(t_final, dt, output_file, initial_state):
+    (q, c, qubits, links) = initialization(t_final, dt)
     # the maximum number of times that we append the circuit
     n_max = t_final / dt
-    # TODO: run the simulation using the qasm sim
     output = []
     n = 0
     while (n < n_max):
@@ -129,7 +134,7 @@ def qasm_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
 
             # kinetic portion of the circuit
             for pair in links:
-                kinetic(circuit, dt, pair[0], pair[1], q[4], q[5])
+                kinetic(circuit, dt, pair[0], pair[1])
 
             # potential portion of the circuit
             multiplication(circuit, q[0], q[1], q[2], q[3])
@@ -157,10 +162,10 @@ def qasm_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state):
     print("Done!")
 
 # run either a qasm or sv simulation
-def run_sim(backend, num_links, num_ancilla, t_final, dt, output_file='', initial_state='000000'):
+def run_sim(backend, t_final, dt, output_file='', initial_state='0000'):
     if output_file == '':
         output_file = 'z4' + backend + 'data.dat'
     if backend == 'sv':
-        sv_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state)
+        sv_sim(t_final, dt, output_file, initial_state)
     if backend == 'qasm':
-        qasm_sim(num_links, num_ancilla, t_final, dt, output_file, initial_state)
+        qasm_sim(t_final, dt, output_file, initial_state)
